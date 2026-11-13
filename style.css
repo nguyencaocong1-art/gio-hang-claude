@@ -1,0 +1,192 @@
+/* ========= Thiết lập chung cho trang web ========= */
+body {
+  font-family: Arial, sans-serif;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+  color: #212529; 
+  background-color: #f8f9fa;
+}
+
+h1, h2 {
+  color: #1a1a1a;
+  border-bottom: 2px solid #e9ecef;
+  padding-bottom: 8px;
+}
+
+/* ========= Danh sách sản phẩm dạng lưới (Grid) & Thẻ Card ========= */
+#danh-sach-san-pham {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.san-pham {
+  background-color: #ffffff; 
+  border: 1px solid #dee2e6; 
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* ========= Hiệu ứng khi rê chuột vào thẻ sản phẩm ========= */
+.san-pham:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+  border-color: #adb5bd;
+}
+
+.san-pham h3 {
+  margin-top: 0;
+  font-size: 18px;
+  color: #212529;
+}
+
+.san-pham p {
+  color: #495057; 
+  font-weight: bold;
+}
+
+/* ========= Nút "Thêm vào giỏ" ========= */
+.san-pham button {
+  background-color: #f39c12; 
+  color: #212529;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  width: 100%;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.san-pham button:hover {
+  background-color: #e08e0b; 
+}
+
+.san-pham button:active {
+  transform: scale(0.98);
+}
+
+
+/* ========= Thiết kế khu vực Giỏ hàng ========= */
+#gio-hang {
+  background-color: #ffffff;
+  border: 1px solid #dee2e6;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+/* ========= Bỏ dấu chấm đầu dòng ========= */
+#gio-hang ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* ========= Mỗi dòng sản phẩm trong giỏ ========= */
+#gio-hang li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid #e9ecef;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+#gio-hang li:last-child {
+  border-bottom: none;
+}
+
+/* Khối thông tin bên trái */
+.thong-tin {
+  flex: 1;
+  line-height: 1.5;
+}
+
+/* Cụm nút điều khiển bên phải - Giúp các hàng thẳng tắp tuyệt đối */
+.nut-dieu-khien {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/*========= Các nút điều khiển (+, -) =========*/
+#gio-hang button {
+  background-color: #343a40;
+  color: #ffffff;
+  border: none;
+  padding: 6px 12px;
+  min-width: 36px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.2s;
+}
+
+#gio-hang button:hover {
+  background-color: #212529;
+}
+
+/* ========= nút "Xóa" =========*/
+#gio-hang button[data-action="xoa"] {
+  background-color: #e9ecef;
+  color: #495057;
+  padding: 6px 12px;
+}
+
+#gio-hang button[data-action="xoa"]:hover {
+  background-color: #ced4da;
+  color: #212529;
+}
+
+/*========= Tổng tiền =========*/
+#gio-hang h3 {
+  margin-top: 20px;
+  margin-bottom: 0;
+  text-align: right;
+  font-size: 20px;
+  color: #78350f; 
+}
+
+
+/* 4. Responsive (Thích ứng trên điện thoại) */
+@media (max-width: 600px) {
+  body {
+    padding: 10px;
+  }
+
+/*========= Khi màn hình nhỏ, sản phẩm sẽ xếp gọn lại =========*/
+  #danh-sach-san-pham {
+    grid-template-columns: 1fr;
+  }
+
+  #gio-hang li {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .nut-dieu-khien {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  #gio-hang button {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  #gio-hang h3 {
+    text-align: left;
+  }
+}
