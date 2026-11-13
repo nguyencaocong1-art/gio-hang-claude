@@ -1,3 +1,12 @@
-dự án tự lập trình web của nguyễn cao công
-gồm các chức năng thêm vào giỏ hàng, thêm , bớt và xóa sản phẩm trong giỏ
-css làm đẹp cho giỏ hàng
+# Tên dự án
+
+Mô tả ngắn một hai câu.
+
+## Chức năng
+- Thêm sản phẩm vào giỏ
+- Tăng, giảm, xóa sản phẩm
+- Tính tổng tiền
+- Lưu giỏ hàng bằng localStorage
+
+## Công nghệ
+HTML, CSS, JavaScript
