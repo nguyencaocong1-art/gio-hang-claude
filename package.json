@@ -1,0 +1,24 @@
+{
+  "name": "tu-hoc-gio-hang-vs-claude-1",
+  "version": "1.0.0",
+  "description": "Mô tả ngắn một hai câu.",
+  "main": "script.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nguyencaocong1-art/gio-hang-claude.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/nguyencaocong1-art/gio-hang-claude/issues"
+  },
+  "homepage": "https://github.com/nguyencaocong1-art/gio-hang-claude#readme",
+  "dependencies": {
+    "express": "^5.3.0"
+  }
+}
