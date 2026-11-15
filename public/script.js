@@ -39,7 +39,7 @@ async function taiSanPham() {
     // Sau khi có dữ liệu, gọi hàm hiển thị sản phẩm lên giao diện
     hienThiSanPham();
   } catch (loi) {
-    khungDanhSachSanPham.innerHTML =
+    khungSanPham.innerHTML =
       "<p>Không tải được sản phẩm, vui lòng thử lại.</p>";
     console.error(loi);
   }
