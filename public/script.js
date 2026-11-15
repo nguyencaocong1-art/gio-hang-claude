@@ -5,6 +5,10 @@ const khungSanPham = document.getElementById("danh-sach-san-pham");
 // Đưa khungGioHang ra biến toàn cục để dùng chung cho cả render và bắt sự kiện
 const khungGioHang = document.getElementById("gio-hang");
 
+const formDatHang = document.getElementById("form-dat-hang");
+const thongBaoP = document.getElementById("thong-bao");
+const btnDatHang = document.getElementById("btn-dat-hang");
+
 // ======================================================
 // HIỂN THỊ SẢN PHẨM RA TRANG
 // ======================================================
@@ -194,5 +198,77 @@ khungGioHang.addEventListener("click", function (event) {
 
     // Sau khi thay đổi dữ liệu giỏ hàng, cập nhật lại giao diện
     hienThiGioHang();
+  }
+});
+
+// ======================================================
+// XỬ LÝ SỰ KIỆN GỬI FORM ĐẶT HÀNG (SUBMIT)
+// ======================================================
+
+formDatHang.addEventListener("submit", async function (event) {
+  // Chặn trình duyệt không tải lại trang mặc định
+  event.preventDefault();
+
+  // Kiểm tra nếu giỏ hàng đang trống thì từ chối gửi
+  if (gioHang.length === 0) {
+    thongBaoP.textContent = "Giỏ hàng của bạn đang trống, vui lòng chọn sản phẩm!";
+    return;
+  }
+
+  // Lấy giá trị từ các ô nhập trong form
+  const ten = document.getElementById("ten").value.trim();
+  const sdt = document.getElementById("sdt").value.trim();
+  const diaChi = document.getElementById("diaChi").value.trim();
+
+  // Tạo mảng giỏ hàng tinh gọn chỉ gửi id và soLuong (Bảo mật: Không gửi giá tiền)
+  const gioHangTinhGọn = gioHang.map(function (item) {
+    return {
+      id: item.id,
+      soLuong: item.soLuong,
+    };
+  });
+
+  // Chống bấm đúp (Disable nút khi đang gửi yêu cầu)
+  btnDatHang.disabled = true;
+  btnDatHang.textContent = "Đang xử lý...";
+  thongBaoP.textContent = "";
+
+  try {
+    // Gửi dữ liệu lên máy chủ thông qua fetch POST
+    const phanHoi = await fetch("/api/don-hang", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        khach: { ten: ten, sdt: sdt, diaChi: diaChi },
+        gioHang: gioHangTinhGọn,
+      }),
+    });
+
+    const ketQua = await phanHoi.json();
+
+    if (!phanHoi.ok) {
+      // Nếu máy chủ trả về lỗi (400, 500,...)
+      throw new Error(ketQua.loi || "Có lỗi xảy ra từ máy chủ.");
+    }
+
+    // 7. Thành công: Hiển thị thông báo, xóa giỏ hàng và reset form
+    const tongTienFormatted = ketQua.tongTien.toLocaleString("vi-VN");
+    thongBaoP.textContent = `Đặt hàng thành công! Mã đơn: ${ketQua.maDonHang}. Tổng tiền: ${tongTienFormatted}đ`;
+    thongBaoP.style.color = "green";
+
+    // Xóa giỏ hàng trên giao diện, localStorage và reset form nhập
+    gioHang = [];
+    hienThiGioHang();
+    formDatHang.reset();
+
+  } catch (loi) {
+    // Hiển thị lỗi bằng textContent (phòng chống XSS)
+    thongBaoP.textContent = loi.message;
+    thongBaoP.style.color = "red";
+    console.error(loi);
+  } finally {
+    // Bật lại nút bấm dù thành công hay thất bại
+    btnDatHang.disabled = false;
+    btnDatHang.textContent = "Xác nhận đặt hàng";
   }
 });

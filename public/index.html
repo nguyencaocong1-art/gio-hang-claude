@@ -15,6 +15,26 @@
   <h2>Giỏ hàng</h2>
   <div id="gio-hang"></div>
 
+  <!-- Form đặt hàng -->
+<form id="form-dat-hang">
+  <h3>Thông tin giao hàng</h3>
+  <div>
+    <label for="ten">Họ và tên:</label><br>
+    <input type="text" id="ten" required placeholder="Nhập họ tên của bạn">
+  </div>
+  <div>
+    <label for="sdt">Số điện thoại:</label><br>
+    <input type="tel" id="sdt" required placeholder="Ví dụ: 0900000000">
+  </div>
+  <div>
+    <label for="diaChi">Địa chỉ giao hàng:</label><br>
+    <input type="text" id="diaChi" required placeholder="Nhập địa chỉ nhận hàng">
+  </div>
+  <br>
+  <button type="submit" id="btn-dat-hang">Xác nhận đặt hàng</button>
+  <p id="thong-bao" style="margin-top: 10px; font-weight: bold;"></p>
+</form>
+
   <script src="script.js"></script>
 </body>
 </html>
