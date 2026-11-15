@@ -1,20 +1,4 @@
-const danhSachSanPham = [
-  {
-    id: 1,
-    ten: "SSD Samsung 1TB",
-    gia: 1300000,
-  },
-  {
-    id: 2,
-    ten: "RAM Kingston 16GB",
-    gia: 1200000,
-  },
-  {
-    id: 3,
-    ten: "CPU Intel I5",
-    gia: 5000000,
-  },
-];
+let danhSachSanPham = [];
 
 // Lấy thẻ div từ HTML
 const khungSanPham = document.getElementById("danh-sach-san-pham");
@@ -25,21 +9,44 @@ const khungGioHang = document.getElementById("gio-hang");
 // HIỂN THỊ SẢN PHẨM RA TRANG
 // ======================================================
 
-// Tạo biến lưu trữ chuỗi HTML
-let htmlContent = "";
+function hienThiSanPham() {
+  // Tạo biến lưu trữ chuỗi HTML
+  let htmlContent = "";
 
-// Lặp qua từng sản phẩm và cộng dồn chuỗi HTML
-danhSachSanPham.forEach(function (sp) {
-  htmlContent += `
+  // Lặp qua từng sản phẩm và cộng dồn chuỗi HTML
+  danhSachSanPham.forEach(function (sp) {
+    htmlContent += `
   <div class="san-pham">
   <h3>${sp.ten}</h3>
   <p>Giá: ${sp.gia.toLocaleString("vi-VN")}đ</p>
   <button data-id="${sp.id}">Thêm vào giỏ</button>
   </div>
   `;
-});
-// Đưa toàn bộ HTML vào thẻ div
-khungSanPham.innerHTML = htmlContent;
+  });
+  // Đưa toàn bộ HTML vào thẻ div
+  khungSanPham.innerHTML = htmlContent;
+}
+
+// Hàm tải dữ liệu từ API /api/san-pham
+async function taiSanPham() {
+  try {
+    const phanHoi = await fetch("/api/san-pham");
+    if (!phanHoi.ok) {
+      throw new Error("Máy chủ trả về lỗi");
+    }
+    danhSachSanPham = await phanHoi.json();
+
+    // Sau khi có dữ liệu, gọi hàm hiển thị sản phẩm lên giao diện
+    hienThiSanPham();
+  } catch (loi) {
+    khungDanhSachSanPham.innerHTML =
+      "<p>Không tải được sản phẩm, vui lòng thử lại.</p>";
+    console.error(loi);
+  }
+}
+
+// Gọi hàm tải sản phẩm khi vừa mở trang
+taiSanPham();
 
 // ======================================================
 // HIỂN THỊ GIỎ HÀNG & LOCALSTORAGE LÊN TRANG
