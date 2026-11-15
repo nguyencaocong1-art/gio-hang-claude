@@ -33,79 +33,109 @@ app.get("/api/san-pham", function (req, res) {
 });
 
 // ======================================================
-// API NHẬN VÀ XỬ LÝ ĐƠN HÀNG (POST)
+// API NHẬN VÀ XỬ LÝ ĐƠN HÀNG (POST) - CÓ BẢO MẬT & XÁC THỰC
 // ======================================================
 app.post("/api/don-hang", function (req, res) {
-  const duLieuGuiLen = req.body;
+  // Phòng hờ req.body là undefined nếu client không gửi JSON lên
+  const duLieuGuiLen = req.body || {};
 
-  // Kiểm tra thông tin khách hàng
+  // Kiểm tra thông tin khách hàng và chuẩn hóa
   const khach = duLieuGuiLen.khach;
-  if (!khach || !khach.ten || !khach.sdt || !khach.diaChi) {
-    return res
-      .status(400)
-      .json({ loi: "Vui lòng điền đầy đủ tên, số điện thoại và địa chỉ!" });
+  if (!khach || typeof khach !== "object") {
+    return res.status(400).json({ loi: "Thông tin khách hàng không hợp lệ!" });
   }
 
-  // Kiểm tra giỏ hàng có dữ liệu hay không
+  // Làm sạch và kiểm tra tên (phải là chuỗi và sau khi trim không được rỗng)
+  const tenKhach = typeof khach.ten === "string" ? khach.ten.trim() : "";
+  const diaChiKhach =
+    typeof khach.diaChi === "string" ? khach.diaChi.trim() : "";
+  const sdtKhach = typeof khach.sdt === "string" ? khach.sdt.trim() : "";
+
+  if (!tenKhach || !diaChiKhach) {
+    return res
+      .status(400)
+      .json({
+        loi: "Tên và địa chỉ không được để trống hoặc chỉ chứa khoảng trắng!",
+      });
+  }
+
+  // Kiểm tra định dạng số điện thoại bằng Regex (0 hoặc +84 theo sau là 9-10 chữ số)
+  const regexSDT = /^(0|\+84)\d{9,10}$/;
+  if (!regexSDT.test(sdtKhach)) {
+    return res.status(400).json({ loi: "Số điện thoại không đúng định dạng!" });
+  }
+
+  // Kiểm tra giỏ hàng
   const gioHang = duLieuGuiLen.gioHang;
   if (!gioHang || !Array.isArray(gioHang) || gioHang.length === 0) {
     return res.status(400).json({ loi: "Giỏ hàng đang trống!" });
   }
 
-  // Duyệt qua từng sản phẩm trong giỏ để kiểm tra tính hợp lệ và tự tính tiền phía server
+  // Duyệt qua từng sản phẩm để kiểm tra tính hợp lệ và tự tính tiền phía server
   let tongTienServer = 0;
   const chiTietDonHang = [];
 
   for (let item of gioHang) {
-    // Kiểm tra số lượng phải là số nguyên lớn hơn 0
-    if (!Number.isInteger(item.soLuong) || item.soLuong <= 0) {
+    // Kiểm tra item có phải là object hợp lệ không (tránh lỗi null)
+    if (!item || typeof item !== "object") {
       return res
         .status(400)
-        .json({ loi: `Số lượng của sản phẩm (ID: ${item.id}) không hợp lệ!` });
+        .json({ loi: "Sản phẩm trong giỏ hàng không hợp lệ!" });
+    }
+
+    const soLuong = Number(item.soLuong);
+    const idSp = Number(item.id);
+
+    // Kiểm tra số lượng phải là số nguyên lớn hơn 0
+    if (!Number.isInteger(soLuong) || soLuong <= 0) {
+      return res
+        .status(400)
+        .json({ loi: "Số lượng sản phẩm phải là số nguyên lớn hơn 0!" });
     }
 
     // Tìm sản phẩm trong danh sách gốc của máy chủ theo ID
     const sanPhamGoc = danhSachSanPham.find(function (sp) {
-      return sp.id === item.id;
+      return sp.id === idSp;
     });
 
     if (!sanPhamGoc) {
       return res
         .status(400)
-        .json({
-          loi: `Sản phẩm với ID ${item.id} không tồn tại trên hệ thống!`,
-        });
+        .json({ loi: `Sản phẩm với ID ${idSp} không tồn tại trên hệ thống!` });
     }
 
-    // Tự động lấy giá chuẩn từ máy chủ (Bất chấp client có gửi giá khác lên)
-    const thanhTien = sanPhamGoc.gia * item.soLuong;
+    // Lấy giá chuẩn từ server
+    const thanhTien = sanPhamGoc.gia * soLuong;
     tongTienServer += thanhTien;
 
-    // Lưu lại thông tin dòng đơn hàng đã được kiểm duyệt
     chiTietDonHang.push({
       id: sanPhamGoc.id,
       ten: sanPhamGoc.ten,
       giaGoc: sanPhamGoc.gia,
-      soLuong: item.soLuong,
+      soLuong: soLuong,
       thanhTien: thanhTien,
     });
   }
 
-  // Tạo mã đơn hàng ngẫu nhiên (hoặc dùng thời gian hiện tại)
+  // Chỉ lưu những trường đã được làm sạch (Whitelisting)
+  const khachHangChuanHoa = {
+    ten: tenKhach,
+    sdt: sdtKhach,
+    diaChi: diaChiKhach,
+  };
+
   const maDonHang = "DH" + Date.now();
 
   const donHangMoi = {
     maDonHang: maDonHang,
-    khachHang: khach,
+    khachHang: khachHangChuanHoa,
     sanPham: chiTietDonHang,
     tongTien: tongTienServer,
     thoiGian: new Date(),
   };
 
-  // Lưu vào mảng danhSachDonHang của máy chủ
   danhSachDonHang.push(donHangMoi);
 
-  // Trả kết quả thành công về cho client
   res.json({
     thongBao: "Đặt hàng thành công!",
     maDonHang: maDonHang,
