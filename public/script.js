@@ -209,9 +209,14 @@ formDatHang.addEventListener("submit", async function (event) {
   // Chặn trình duyệt không tải lại trang mặc định
   event.preventDefault();
 
+  // Xóa sạch thông báo cũ và reset class
+  thongBaoP.textContent = "";
+  thongBaoP.className = "";
+
   // Kiểm tra nếu giỏ hàng đang trống thì từ chối gửi
   if (gioHang.length === 0) {
-    thongBaoP.textContent = "Giỏ hàng của bạn đang trống, vui lòng chọn sản phẩm!";
+    thongBaoP.textContent =
+      "Giỏ hàng của bạn đang trống, vui lòng chọn sản phẩm!";
     return;
   }
 
@@ -221,7 +226,7 @@ formDatHang.addEventListener("submit", async function (event) {
   const diaChi = document.getElementById("diaChi").value.trim();
 
   // Tạo mảng giỏ hàng tinh gọn chỉ gửi id và soLuong (Bảo mật: Không gửi giá tiền)
-  const gioHangTinhGọn = gioHang.map(function (item) {
+  const gioHangTinhGon = gioHang.map(function (item) {
     return {
       id: item.id,
       soLuong: item.soLuong,
@@ -240,7 +245,7 @@ formDatHang.addEventListener("submit", async function (event) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         khach: { ten: ten, sdt: sdt, diaChi: diaChi },
-        gioHang: gioHangTinhGọn,
+        gioHang: gioHangTinhGon,
       }),
     });
 
@@ -251,20 +256,17 @@ formDatHang.addEventListener("submit", async function (event) {
       throw new Error(ketQua.loi || "Có lỗi xảy ra từ máy chủ.");
     }
 
-    // 7. Thành công: Hiển thị thông báo, xóa giỏ hàng và reset form
+    //  Thành công: Hiển thị thông báo, xóa giỏ hàng và reset form
     const tongTienFormatted = ketQua.tongTien.toLocaleString("vi-VN");
     thongBaoP.textContent = `Đặt hàng thành công! Mã đơn: ${ketQua.maDonHang}. Tổng tiền: ${tongTienFormatted}đ`;
-    thongBaoP.style.color = "green";
 
     // Xóa giỏ hàng trên giao diện, localStorage và reset form nhập
     gioHang = [];
     hienThiGioHang();
     formDatHang.reset();
-
   } catch (loi) {
     // Hiển thị lỗi bằng textContent (phòng chống XSS)
     thongBaoP.textContent = loi.message;
-    thongBaoP.style.color = "red";
     console.error(loi);
   } finally {
     // Bật lại nút bấm dù thành công hay thất bại
