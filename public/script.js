@@ -31,7 +31,9 @@ function hienThiSanPham() {
   khungSanPham.innerHTML = htmlContent;
 }
 
-// Hàm tải dữ liệu từ API /api/san-pham
+// ======================================================
+// HÀM TẢI DỮ LIỆU TỪ MÁY CHỦ (API)
+// ======================================================
 async function taiSanPham() {
   try {
     const phanHoi = await fetch("/api/san-pham");
@@ -40,17 +42,26 @@ async function taiSanPham() {
     }
     danhSachSanPham = await phanHoi.json();
 
-    // Sau khi có dữ liệu, gọi hàm hiển thị sản phẩm lên giao diện
+    // Đánh dấu đã tải xong dữ liệu thành công
+    daTaiXong = true;
+
+    // Lọc bỏ các sản phẩm đã bị gỡ khỏi hệ thống ra khỏi giỏ hàng
+    gioHang = gioHang.filter(function (item) {
+      return danhSachSanPham.some(function (sp) {
+        return sp.id === item.id;
+      });
+    });
+
     hienThiSanPham();
+    hienThiGioHang();
   } catch (loi) {
+    daTaiXong = true; // Vẫn đánh dấu true để thoát trạng thái "Đang tải..."
     khungSanPham.innerHTML =
       "<p>Không tải được sản phẩm, vui lòng thử lại.</p>";
+    khungGioHang.innerHTML = "<p>Không thể tải giỏ hàng.</p>";
     console.error(loi);
   }
 }
-
-// Gọi hàm tải sản phẩm khi vừa mở trang
-taiSanPham();
 
 // ======================================================
 // HIỂN THỊ GIỎ HÀNG & LOCALSTORAGE LÊN TRANG
@@ -59,6 +70,7 @@ taiSanPham();
 // đọc dữ liệu từ localstorage khi vừa tải trang
 // nếu chưa có (null), dùng mảng rỗng [] bằng toán tử ||
 let gioHang = JSON.parse(localStorage.getItem("gioHang")) || [];
+let daTaiXong = false;
 
 // hàm hỗ trợ lưu giỏ hàng và localstorage
 function luuGioHang() {
@@ -67,7 +79,12 @@ function luuGioHang() {
 
 // hàm hiển thị giỏ hàng và tổng tiền lên trang web
 function hienThiGioHang() {
-  // Mỗi khi hiển thị/cập nhật giỏ hàng, ta tiến hành lưu luôn vào localStorage
+  // Nếu chưa tải xong dữ liệu từ server, hiển thị trạng thái chờ
+  if (!daTaiXong) {
+    khungGioHang.innerHTML = "<p>Đang tải giỏ hàng...</p>";
+    return;
+  }
+
   luuGioHang();
 
   // nếu giỏ hàng trống, hiển thị thông báo
@@ -78,21 +95,24 @@ function hienThiGioHang() {
 
   // khởi tạo chuỗi html rỗng mới mỗi lần hàm chạy để tránh bị lặp cộng dồn
   let htmlGioHang = "<ul>";
+  let tongTien = 0; // Khởi tạo tổng tiền
 
-  // Biến tính tổng tiền dùng reduce
-  const tongTien = gioHang.reduce(function (tong, item) {
-    return tong + item.gia * item.soLuong;
-  }, 0);
-
+  // Gộp chung vừa dựng HTML vừa tính tổng tiền trong 1 vòng lặp duy nhất
   gioHang.forEach(function (item) {
-    // tính thành tiền cho từng sản phẩm
-    const thanhTien = item.gia * item.soLuong;
+    const sanPhamGoc = danhSachSanPham.find(function (sp) {
+      return sp.id === item.id;
+    });
+
+    if (!sanPhamGoc) return; // Bỏ qua nếu sản phẩm đã bị gỡ khỏi hệ thống
+
+    const thanhTien = sanPhamGoc.gia * item.soLuong;
+    tongTien += thanhTien; // Cộng dồn vào tổng tiền
 
     htmlGioHang += `
       <li>
         <span class="thong-tin">
-          ${item.ten} - 
-          Đơn giá: ${item.gia.toLocaleString("vi-VN")}đ - 
+          ${sanPhamGoc.ten} - 
+          Đơn giá: ${sanPhamGoc.gia.toLocaleString("vi-VN")}đ - 
           Số lượng: ${item.soLuong} - 
           Thành tiền: <strong>${thanhTien.toLocaleString("vi-VN")}đ</strong>
         </span>
@@ -115,7 +135,7 @@ function hienThiGioHang() {
   khungGioHang.innerHTML = htmlGioHang;
 }
 
-// gọi hàm này lần đầu tiên khi vừa tải trang để hiện chữ "giỏ hàng trống"
+// Gọi lần đầu để hiển thị trạng thái "Đang tải giỏ hàng..."
 hienThiGioHang();
 
 // ======================================================
@@ -146,12 +166,11 @@ khungSanPham.addEventListener("click", function (event) {
         // nếu đã có tăng số lượng lên 1
         itemTrongGio.soLuong += 1;
       } else {
-        // nếu chưa có tạo một đối tượng mới bằng spread operator() kèm theo soLuong: 1
-        const sanPhamMoi = {
-          ...sanPhamTimThay,
+        // Chỉ lưu id và soLuong tinh gọn
+        gioHang.push({
+          id: sanPhamTimThay.id,
           soLuong: 1,
-        };
-        gioHang.push(sanPhamMoi);
+        });
       }
 
       // sau khi cập nhật giỏ hàng, gọi hàm hiển thị lại giao diện
@@ -217,6 +236,7 @@ formDatHang.addEventListener("submit", async function (event) {
   if (gioHang.length === 0) {
     thongBaoP.textContent =
       "Giỏ hàng của bạn đang trống, vui lòng chọn sản phẩm!";
+    thongBaoP.className = "loi";
     return;
   }
 
@@ -259,6 +279,7 @@ formDatHang.addEventListener("submit", async function (event) {
     //  Thành công: Hiển thị thông báo, xóa giỏ hàng và reset form
     const tongTienFormatted = ketQua.tongTien.toLocaleString("vi-VN");
     thongBaoP.textContent = `Đặt hàng thành công! Mã đơn: ${ketQua.maDonHang}. Tổng tiền: ${tongTienFormatted}đ`;
+    thongBaoP.className = "thanh-cong";
 
     // Xóa giỏ hàng trên giao diện, localStorage và reset form nhập
     gioHang = [];
@@ -267,6 +288,7 @@ formDatHang.addEventListener("submit", async function (event) {
   } catch (loi) {
     // Hiển thị lỗi bằng textContent (phòng chống XSS)
     thongBaoP.textContent = loi.message;
+    thongBaoP.className = "loi";
     console.error(loi);
   } finally {
     // Bật lại nút bấm dù thành công hay thất bại
@@ -274,3 +296,5 @@ formDatHang.addEventListener("submit", async function (event) {
     btnDatHang.textContent = "Xác nhận đặt hàng";
   }
 });
+
+taiSanPham();

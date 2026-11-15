@@ -52,11 +52,9 @@ app.post("/api/don-hang", function (req, res) {
   const sdtKhach = typeof khach.sdt === "string" ? khach.sdt.trim() : "";
 
   if (!tenKhach || !diaChiKhach) {
-    return res
-      .status(400)
-      .json({
-        loi: "Tên và địa chỉ không được để trống hoặc chỉ chứa khoảng trắng!",
-      });
+    return res.status(400).json({
+      loi: "Tên và địa chỉ không được để trống hoặc chỉ chứa khoảng trắng!",
+    });
   }
 
   // Kiểm tra định dạng số điện thoại bằng Regex (0 hoặc +84 theo sau là 9-10 chữ số)
