@@ -4,22 +4,61 @@ const path = require("path");
 
 const db = require("./db");
 
+// Chuẩn bị sẵn toàn bộ các câu lệnh SQL ở đầu file để tái sử dụng
+const stmtLayTatCaSanPham = db.prepare("SELECT id, ten, gia FROM san_pham");
+const stmtTimSanPham = db.prepare(
+  "SELECT id, ten, gia FROM san_pham WHERE id = ?",
+);
+
+const stmtThemDonHang = db.prepare(`
+  INSERT INTO don_hang (ten_khach, sdt, dia_chi, tong_tien)
+  VALUES (?, ?, ?, ?)
+`);
+
+const stmtThemChiTiet = db.prepare(`
+  INSERT INTO chi_tiet_don_hang (don_hang_id, san_pham_id, ten_san_pham, gia_luc_mua, so_luong)
+  VALUES (?, ?, ?, ?, ?)
+`);
+
+// Tạo sẵn hàm transaction ở ngoài để tái sử dụng
+const luuDonHangTransaction = db.transaction(
+  (thongTinKhach, chiTiet, tongTien) => {
+    const ketQuaDonHang = stmtThemDonHang.run(
+      thongTinKhach.ten,
+      thongTinKhach.sdt,
+      thongTinKhach.diaChi,
+      tongTien,
+    );
+
+    const donHangId = ketQuaDonHang.lastInsertRowid;
+
+    for (const item of chiTiet) {
+      stmtThemChiTiet.run(
+        donHangId,
+        item.id,
+        item.ten,
+        item.giaGoc,
+        item.soLuong,
+      );
+    }
+
+    return "DH" + String(donHangId).padStart(6, "0");
+  },
+);
+
 // Cho phép máy chủ đọc được dữ liệu JSON gửi lên từ client qua req.body
 app.use(express.json());
 
-// KHAI BÁO MẢNG LƯU ĐƠN HÀNG TẠM THỜI
-const danhSachDonHang = [];
-
+// API lấy danh sách sản phẩm
 app.get("/api/san-pham", function (req, res) {
-  const danhSach = db.prepare("SELECT id, ten, gia FROM san_pham").all();
+  const danhSach = stmtLayTatCaSanPham.all();
   res.json(danhSach);
 });
 
 // ======================================================
-// API NHẬN VÀ XỬ LÝ ĐƠN HÀNG (POST) - CÓ BẢO MẬT & XÁC THỰC
+// API NHẬN VÀ XỬ LÝ ĐƠN HÀNG (POST) - BẢO MẬT & SQLITE TRANSACTION
 // ======================================================
 app.post("/api/don-hang", function (req, res) {
-  // Phòng hờ req.body là undefined nếu client không gửi JSON lên
   const duLieuGuiLen = req.body || {};
 
   // Kiểm tra thông tin khách hàng và chuẩn hóa
@@ -28,7 +67,6 @@ app.post("/api/don-hang", function (req, res) {
     return res.status(400).json({ loi: "Thông tin khách hàng không hợp lệ!" });
   }
 
-  // Làm sạch và kiểm tra tên (phải là chuỗi và sau khi trim không được rỗng)
   const tenKhach = typeof khach.ten === "string" ? khach.ten.trim() : "";
   const diaChiKhach =
     typeof khach.diaChi === "string" ? khach.diaChi.trim() : "";
@@ -40,7 +78,6 @@ app.post("/api/don-hang", function (req, res) {
     });
   }
 
-  // Kiểm tra định dạng số điện thoại bằng Regex (0 hoặc +84 theo sau là 9-10 chữ số)
   const regexSDT = /^(0|\+84)\d{9,10}$/;
   if (!regexSDT.test(sdtKhach)) {
     return res.status(400).json({ loi: "Số điện thoại không đúng định dạng!" });
@@ -52,27 +89,19 @@ app.post("/api/don-hang", function (req, res) {
     return res.status(400).json({ loi: "Giỏ hàng đang trống!" });
   }
 
-  const timSanPham = db.prepare(
-    "SELECT id, ten, gia FROM san_pham WHERE id = ?",
-  );
-
-  // Duyệt qua từng sản phẩm để kiểm tra tính hợp lệ và tự tính tiền phía server
   let tongTienServer = 0;
   const chiTietDonHang = [];
 
   for (let item of gioHang) {
-    // Kiểm tra item có phải là object hợp lệ không (tránh lỗi null)
     if (!item || typeof item !== "object") {
       return res
         .status(400)
         .json({ loi: "Sản phẩm trong giỏ hàng không hợp lệ!" });
     }
 
-    // Không ép kiểu ngầm, giữ nguyên giá trị để kiểm tra chặt chẽ kiểu dữ liệu
-    const soLuong = Number(item.soLuong);
-    const idSp = Number(item.id);
+    const soLuong = item.soLuong;
+    const idSp = item.id;
 
-    // Kiểm tra nghiêm ngặt: ID và số lượng phải là số nguyên, số lượng từ 1 đến 100
     if (
       !Number.isInteger(idSp) ||
       !Number.isInteger(soLuong) ||
@@ -84,8 +113,8 @@ app.post("/api/don-hang", function (req, res) {
         .json({ loi: "ID hoặc số lượng sản phẩm không hợp lệ!" });
     }
 
-    // Truy vấn bằng .get(idSp)
-    const sanPhamGoc = timSanPham.get(idSp);
+    // Dùng trực tiếp stmtTimSanPham đã chuẩn bị ở đầu file
+    const sanPhamGoc = stmtTimSanPham.get(idSp);
 
     if (!sanPhamGoc) {
       return res
@@ -93,7 +122,6 @@ app.post("/api/don-hang", function (req, res) {
         .json({ loi: `Sản phẩm với ID ${idSp} không tồn tại trên hệ thống!` });
     }
 
-    // Lấy giá chuẩn từ server
     const thanhTien = sanPhamGoc.gia * soLuong;
     tongTienServer += thanhTien;
 
@@ -106,28 +134,24 @@ app.post("/api/don-hang", function (req, res) {
     });
   }
 
-  // Chỉ lưu những trường đã được làm sạch (Whitelisting)
-  const khachHangChuanHoa = {
-    ten: tenKhach,
-    sdt: sdtKhach,
-    diaChi: diaChiKhach,
-  };
+  let maDonHangChuoi = "";
 
-  const maDonHang = "DH" + Date.now();
-
-  const donHangMoi = {
-    maDonHang: maDonHang,
-    khachHang: khachHangChuanHoa,
-    sanPham: chiTietDonHang,
-    tongTien: tongTienServer,
-    thoiGian: new Date(),
-  };
-
-  danhSachDonHang.push(donHangMoi);
+  try {
+    maDonHangChuoi = luuDonHangTransaction(
+      { ten: tenKhach, sdt: sdtKhach, diaChi: diaChiKhach },
+      chiTietDonHang,
+      tongTienServer,
+    );
+  } catch (loiDb) {
+    console.error("Lỗi khi lưu đơn hàng vào CSDL:", loiDb);
+    return res
+      .status(500)
+      .json({ loi: "Lỗi máy chủ khi lưu đơn hàng, vui lòng thử lại sau!" });
+  }
 
   res.json({
     thongBao: "Đặt hàng thành công!",
-    maDonHang: maDonHang,
+    maDonHang: maDonHangChuoi,
     tongTien: tongTienServer,
   });
 });
