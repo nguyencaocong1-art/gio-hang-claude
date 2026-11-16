@@ -2,34 +2,17 @@ const express = require("express");
 const app = express();
 const path = require("path");
 
+const db = require("./db");
+
 // Cho phép máy chủ đọc được dữ liệu JSON gửi lên từ client qua req.body
 app.use(express.json());
 
-// Khai báo danh sách sản phẩm (Dữ liệu gốc trên Server - nguồn chân lý về giá)
-const danhSachSanPham = [
-  {
-    id: 1,
-    ten: "SSD Samsung 1TB",
-    gia: 1300000,
-  },
-  {
-    id: 2,
-    ten: "RAM Kingston 16GB",
-    gia: 1200000,
-  },
-  {
-    id: 3,
-    ten: "CPU Intel I5",
-    gia: 5000000,
-  },
-];
-
-// Mảng tạm lưu trữ đơn hàng trên server (sẽ mất khi khởi động lại server)
+// KHAI BÁO MẢNG LƯU ĐƠN HÀNG TẠM THỜI
 const danhSachDonHang = [];
 
-// API trả về danh sách sản phẩm cho frontend
 app.get("/api/san-pham", function (req, res) {
-  res.json(danhSachSanPham);
+  const danhSach = db.prepare("SELECT id, ten, gia FROM san_pham").all();
+  res.json(danhSach);
 });
 
 // ======================================================
@@ -69,6 +52,10 @@ app.post("/api/don-hang", function (req, res) {
     return res.status(400).json({ loi: "Giỏ hàng đang trống!" });
   }
 
+  const timSanPham = db.prepare(
+    "SELECT id, ten, gia FROM san_pham WHERE id = ?",
+  );
+
   // Duyệt qua từng sản phẩm để kiểm tra tính hợp lệ và tự tính tiền phía server
   let tongTienServer = 0;
   const chiTietDonHang = [];
@@ -81,20 +68,24 @@ app.post("/api/don-hang", function (req, res) {
         .json({ loi: "Sản phẩm trong giỏ hàng không hợp lệ!" });
     }
 
+    // Không ép kiểu ngầm, giữ nguyên giá trị để kiểm tra chặt chẽ kiểu dữ liệu
     const soLuong = Number(item.soLuong);
     const idSp = Number(item.id);
 
-    // Kiểm tra số lượng phải là số nguyên lớn hơn 0
-    if (!Number.isInteger(soLuong) || soLuong <= 0) {
+    // Kiểm tra nghiêm ngặt: ID và số lượng phải là số nguyên, số lượng từ 1 đến 100
+    if (
+      !Number.isInteger(idSp) ||
+      !Number.isInteger(soLuong) ||
+      soLuong < 1 ||
+      soLuong > 100
+    ) {
       return res
         .status(400)
-        .json({ loi: "Số lượng sản phẩm phải là số nguyên lớn hơn 0!" });
+        .json({ loi: "ID hoặc số lượng sản phẩm không hợp lệ!" });
     }
 
-    // Tìm sản phẩm trong danh sách gốc của máy chủ theo ID
-    const sanPhamGoc = danhSachSanPham.find(function (sp) {
-      return sp.id === idSp;
-    });
+    // Truy vấn bằng .get(idSp)
+    const sanPhamGoc = timSanPham.get(idSp);
 
     if (!sanPhamGoc) {
       return res

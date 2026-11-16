@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/nguyencaocong1-art/gio-hang-claude#readme",
   "dependencies": {
+    "better-sqlite3": "^13.2.0",
     "express": "^5.3.0"
   }
 }
