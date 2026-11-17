@@ -9,7 +9,8 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS san_pham (
     id INTEGER PRIMARY KEY,
     ten TEXT NOT NULL,
-    gia INTEGER NOT NULL
+    gia INTEGER NOT NULL,
+    anh TEXT
   );
 
   CREATE TABLE IF NOT EXISTS don_hang (
@@ -31,6 +32,17 @@ db.exec(`
   );
 `);
 
+// Migration: Nâng cấp cơ sở dữ liệu cũ nếu chưa có cột 'anh'
+const cotSanPham = db.prepare("PRAGMA table_info(san_pham)").all();
+if (
+  !cotSanPham.some(function (cot) {
+    return cot.name === "anh";
+  })
+) {
+  db.exec("ALTER TABLE san_pham ADD COLUMN anh TEXT");
+  console.log("Đã nâng cấp bảng san_pham: thêm cột 'anh'.");
+}
+
 // Kiểm tra nếu bảng đang trống thì tự động chèn dữ liệu mẫu
 const soDong = db
   .prepare("SELECT COUNT(*) AS soDong FROM san_pham")
@@ -38,23 +50,46 @@ const soDong = db
 
 if (soDong === 0) {
   const themSanPham = db.prepare(
-    "INSERT INTO san_pham (id, ten, gia) VALUES (?, ?, ?)",
+    "INSERT INTO san_pham (id, ten, gia, anh) VALUES (?, ?, ?, ?)",
   );
 
   // Dùng transaction để chèn dữ liệu an toàn và hiệu quả
   const chenNhieuSanPham = db.transaction((danhSach) => {
     for (const sp of danhSach) {
-      themSanPham.run(sp.id, sp.ten, sp.gia);
+      themSanPham.run(sp.id, sp.ten, sp.gia, sp.anh);
     }
   });
 
   chenNhieuSanPham([
-    { id: 1, ten: "SSD Samsung 1TB", gia: 1300000 },
-    { id: 2, ten: "RAM Kingston 16GB", gia: 1200000 },
-    { id: 3, ten: "CPU Intel I5", gia: 5000000 },
+    {
+      id: 1,
+      ten: "SSD Samsung 1TB",
+      gia: 1300000,
+      anh: "anh/ssd-samsung-1tb.jpg",
+    },
+    {
+      id: 2,
+      ten: "RAM Kingston 16GB",
+      gia: 1200000,
+      anh: "anh/ram-kingston-16gb.jpg",
+    },
+    { id: 3, ten: "CPU Intel I5", gia: 5000000, anh: "anh/cpu-intel-i5.jpg" },
   ]);
 
   console.log("Đã nạp dữ liệu mẫu vào cơ sở dữ liệu thành công!");
+} else {
+  // Gán ảnh cho các sản phẩm cũ đang bị trống cột 'anh' (không ghi đè ảnh đã có)
+  const capNhatAnh = db.prepare(
+    "UPDATE san_pham SET anh = ? WHERE id = ? AND anh IS NULL",
+  );
+  capNhatAnh.run("/anh/ssd-samsung-1tb.jpg", 1);
+  capNhatAnh.run("/anh/ram-kingston-16gb.jpg", 2);
+  capNhatAnh.run("/anh/cpu-intel-i5.jpg", 3);
+
+  // 2. Sửa một lần cho các dòng dữ liệu cũ đang lưu "anh/..." thành "/anh/..."
+  db.exec(
+    "UPDATE san_pham SET anh = '/' || anh WHERE anh IS NOT NULL AND anh NOT LIKE '/%'",
+  );
 }
 
 module.exports = db;

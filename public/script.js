@@ -12,23 +12,43 @@ const btnDatHang = document.getElementById("btn-dat-hang");
 // ======================================================
 // HIỂN THỊ SẢN PHẨM RA TRANG
 // ======================================================
-
 function hienThiSanPham() {
-  // Tạo biến lưu trữ chuỗi HTML
-  let htmlContent = "";
+  khungSanPham.replaceChildren();
 
-  // Lặp qua từng sản phẩm và cộng dồn chuỗi HTML
   danhSachSanPham.forEach(function (sp) {
-    htmlContent += `
-  <div class="san-pham">
-  <h3>${sp.ten}</h3>
-  <p>Giá: ${sp.gia.toLocaleString("vi-VN")}đ</p>
-  <button data-id="${sp.id}">Thêm vào giỏ</button>
-  </div>
-  `;
+    const theSp = document.createElement("div");
+    theSp.className = "san-pham";
+
+    // Tạo ảnh sản phẩm (dùng đường dẫn gốc /anh/...)
+    const img = document.createElement("img");
+    img.src = sp.anh ? sp.anh : "/anh/mac-dinh.jpg";
+    img.alt = sp.ten;
+    img.loading = "lazy";
+    img.className = "anh-san-pham";
+
+    img.onerror = function () {
+      if (!this.src.endsWith("/anh/mac-dinh.jpg")) {
+        this.src = "/anh/mac-dinh.jpg";
+      }
+    };
+
+    const tieuDe = document.createElement("h3");
+    tieuDe.textContent = sp.ten;
+
+    const giaP = document.createElement("p");
+    giaP.textContent = `Giá: ${sp.gia.toLocaleString("vi-VN")}đ`;
+
+    const btnThem = document.createElement("button");
+    btnThem.dataset.id = sp.id;
+    btnThem.textContent = "Thêm vào giỏ";
+
+    theSp.appendChild(img);
+    theSp.appendChild(tieuDe);
+    theSp.appendChild(giaP);
+    theSp.appendChild(btnThem);
+
+    khungSanPham.appendChild(theSp);
   });
-  // Đưa toàn bộ HTML vào thẻ div
-  khungSanPham.innerHTML = htmlContent;
 }
 
 // ======================================================
@@ -64,75 +84,86 @@ async function taiSanPham() {
 }
 
 // ======================================================
-// HIỂN THỊ GIỎ HÀNG & LOCALSTORAGE LÊN TRANG
+// HIỂN THỊ GIỎ HÀNG & LOCALSTORAGE LÊN TRANG (DOM THUẦN)
 // ======================================================
-
-// đọc dữ liệu từ localstorage khi vừa tải trang
-// nếu chưa có (null), dùng mảng rỗng [] bằng toán tử ||
 let gioHang = JSON.parse(localStorage.getItem("gioHang")) || [];
 let daTaiXong = false;
 
-// hàm hỗ trợ lưu giỏ hàng và localstorage
 function luuGioHang() {
   localStorage.setItem("gioHang", JSON.stringify(gioHang));
 }
 
-// hàm hiển thị giỏ hàng và tổng tiền lên trang web
+function taoNutGioHang(id, action, nhanAria, kyHieu) {
+  const btn = document.createElement("button");
+  btn.dataset.id = id;
+  btn.dataset.action = action;
+  btn.setAttribute("aria-label", nhanAria);
+  btn.textContent = kyHieu;
+  return btn;
+}
+
 function hienThiGioHang() {
-  // Nếu chưa tải xong dữ liệu từ server, hiển thị trạng thái chờ
+  khungGioHang.replaceChildren();
+
   if (!daTaiXong) {
-    khungGioHang.innerHTML = "<p>Đang tải giỏ hàng...</p>";
+    const pCho = document.createElement("p");
+    pCho.textContent = "Đang tải giỏ hàng...";
+    khungGioHang.appendChild(pCho);
     return;
   }
 
   luuGioHang();
 
-  // nếu giỏ hàng trống, hiển thị thông báo
   if (gioHang.length === 0) {
-    khungGioHang.innerHTML = "<p>giỏ hàng trống</p>";
-    return; //dừng hàm luôn, không chạy phần dưới nữa
+    const pTrong = document.createElement("p");
+    pTrong.textContent = "Giỏ hàng trống";
+    khungGioHang.appendChild(pTrong);
+    return;
   }
 
-  // khởi tạo chuỗi html rỗng mới mỗi lần hàm chạy để tránh bị lặp cộng dồn
-  let htmlGioHang = "<ul>";
-  let tongTien = 0; // Khởi tạo tổng tiền
+  const ul = document.createElement("ul");
+  let tongTien = 0;
 
-  // Gộp chung vừa dựng HTML vừa tính tổng tiền trong 1 vòng lặp duy nhất
   gioHang.forEach(function (item) {
     const sanPhamGoc = danhSachSanPham.find(function (sp) {
       return sp.id === item.id;
     });
 
-    if (!sanPhamGoc) return; // Bỏ qua nếu sản phẩm đã bị gỡ khỏi hệ thống
+    if (!sanPhamGoc) return;
 
     const thanhTien = sanPhamGoc.gia * item.soLuong;
-    tongTien += thanhTien; // Cộng dồn vào tổng tiền
+    tongTien += thanhTien;
 
-    htmlGioHang += `
-      <li>
-        <span class="thong-tin">
-          ${sanPhamGoc.ten} - 
-          Đơn giá: ${sanPhamGoc.gia.toLocaleString("vi-VN")}đ - 
-          Số lượng: ${item.soLuong} - 
-          Thành tiền: <strong>${thanhTien.toLocaleString("vi-VN")}đ</strong>
-        </span>
-        
-        <div class="nut-dieu-khien">
-          <button data-id="${item.id}" data-action="tang" aria-label="Tăng số lượng">+</button>
-          <button data-id="${item.id}" data-action="giam" aria-label="Giảm số lượng">-</button>
-          <button data-id="${item.id}" data-action="xoa" aria-label="Xóa sản phẩm">Xóa</button>
-        </div>
-      </li>
-    `;
+    const li = document.createElement("li");
+
+    // Khối thông tin sản phẩm
+    const spanThongTin = document.createElement("span");
+    spanThongTin.className = "thong-tin";
+    spanThongTin.append(
+      `${sanPhamGoc.ten} - Đơn giá: ${sanPhamGoc.gia.toLocaleString("vi-VN")}đ - Số lượng: ${item.soLuong} - Thành tiền: `,
+    );
+
+    const strongThanhTien = document.createElement("strong");
+    strongThanhTien.textContent = `${thanhTien.toLocaleString("vi-VN")}đ`;
+    spanThongTin.appendChild(strongThanhTien);
+
+    // Cụm nút điều khiển
+    const divNut = document.createElement("div");
+    divNut.className = "nut-dieu-khien";
+    divNut.appendChild(taoNutGioHang(item.id, "tang", "Tăng số lượng", "+"));
+    divNut.appendChild(taoNutGioHang(item.id, "giam", "Giảm số lượng", "-"));
+    divNut.appendChild(taoNutGioHang(item.id, "xoa", "Xóa sản phẩm", "Xóa"));
+
+    li.appendChild(spanThongTin);
+    li.appendChild(divNut);
+    ul.appendChild(li);
   });
 
-  htmlGioHang += "</ul>";
+  khungGioHang.appendChild(ul);
 
-  // hiển thị tổng tiền ở cuối giỏ
-  htmlGioHang += `<h3>Tổng tiền: ${tongTien.toLocaleString("vi-VN")}đ</h3>`;
-
-  // đưa toàn bộ html giỏ hàng vào div#gio-hang
-  khungGioHang.innerHTML = htmlGioHang;
+  const h3TongTien = document.createElement("h3");
+  h3TongTien.textContent = `Tổng tiền: ${tongTien.toLocaleString("vi-VN")}đ`;
+  khungGioHang.appendChild(h3TongTien);
 }
 
 // Gọi lần đầu để hiển thị trạng thái "Đang tải giỏ hàng..."

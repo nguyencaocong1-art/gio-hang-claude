@@ -235,7 +235,7 @@ h1, h2 {
 /* Nút đặt hàng đồng bộ với nút "Thêm vào giỏ" */
 #btn-dat-hang {
   background-color: #ffb300;
-  color: #fff;
+  color: #212529;
   border: none;
   padding: 10px 20px;
   font-size: 16px;
@@ -251,7 +251,8 @@ h1, h2 {
 }
 
 #btn-dat-hang:disabled {
-  background-color: #ccc;
+  background-color: #dee2e6;
+  color: #495057;
   cursor: not-allowed;
 }
 
@@ -268,4 +269,14 @@ h1, h2 {
 
 #thong-bao.loi {
   color: #c92a2a;
+}
+
+.anh-san-pham {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  background-color: #f9f9f9;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  display: block;
 }

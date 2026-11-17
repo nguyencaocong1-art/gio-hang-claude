@@ -64,7 +64,9 @@ function yeuCauQuanTri(req, res, next) {
 }
 
 // Chuẩn bị sẵn toàn bộ các câu lệnh SQL ở đầu file để tái sử dụng
-const stmtLayTatCaSanPham = db.prepare("SELECT id, ten, gia FROM san_pham");
+const stmtLayTatCaSanPham = db.prepare(
+  "SELECT id, ten, gia, anh FROM san_pham",
+);
 const stmtTimSanPham = db.prepare(
   "SELECT id, ten, gia FROM san_pham WHERE id = ?",
 );
