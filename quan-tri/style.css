@@ -1,0 +1,77 @@
+ body {
+      font-family: Arial, sans-serif;
+      max-width: 960px;
+      margin: 30px auto;
+      padding: 0 20px;
+      background-color: #f4f6f8;
+      color: #333;
+    }
+    .thanh-tieu-de {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #ddd;
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 8px 16px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .the-don-hang {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+    }
+    .dau-the {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+    }
+    .ma-don {
+      font-weight: bold;
+      font-size: 18px;
+      color: #d9534f;
+    }
+    .thoi-gian {
+      color: #666;
+      font-size: 14px;
+    }
+    .thong-tin-khach p {
+      margin: 5px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+    th, td {
+      border: 1px solid #e0e0e0;
+      padding: 8px 12px;
+      text-align: left;
+    }
+    th {
+      background-color: #f8f9fa;
+    }
+    .tong-tien {
+      text-align: right;
+      font-weight: bold;
+      font-size: 17px;
+      color: #28a745;
+      margin-top: 12px;
+    }
+    .thong-bao-loi {
+      color: #d9534f;
+      font-weight: bold;
+    }

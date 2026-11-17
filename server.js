@@ -1,8 +1,67 @@
 const express = require("express");
 const app = express();
 const path = require("path");
+const crypto = require("crypto");
 
+// Kiểm tra cấu hình bảo mật ngay khi khởi động (Fail-fast)
+const ADMIN_USER = process.env.ADMIN_USER;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+if (!ADMIN_USER || !ADMIN_PASSWORD) {
+  console.error(
+    "LỖI NGHIÊM TRỌNG: Thiếu cấu hình ADMIN_USER hoặc ADMIN_PASSWORD trong file .env!",
+  );
+  process.exit(1);
+}
+
+// Khai báo db
 const db = require("./db");
+
+const stmtDonMoiNhat = db.prepare(
+  "SELECT * FROM don_hang ORDER BY id DESC LIMIT 50",
+);
+const stmtChiTietTheoDon = db.prepare(
+  "SELECT * FROM chi_tiet_don_hang WHERE don_hang_id = ?",
+);
+
+// Hàm so sánh an toàn tuyệt đối (băm SHA-256 để cố định độ dài, chống rò rỉ thông tin)
+function soSanhAnToan(a, b) {
+  const hashA = crypto.createHash("sha256").update(String(a)).digest();
+  const hashB = crypto.createHash("sha256").update(String(b)).digest();
+  return crypto.timingSafeEqual(hashA, hashB);
+}
+
+// Middleware bảo vệ trang/API quản trị bằng Basic Auth
+function yeuCauQuanTri(req, res, next) {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith("Basic ")) {
+    res.set("WWW-Authenticate", 'Basic realm="Quan tri cua hang"');
+    return res.status(401).send("Cần đăng nhập để truy cập khu vực quản trị.");
+  }
+
+  const phanMa = authHeader.slice(6);
+  const chuoiGiaiMa = Buffer.from(phanMa, "base64").toString("utf8");
+
+  const viTriHaiCham = chuoiGiaiMa.indexOf(":");
+  if (viTriHaiCham === -1) {
+    res.set("WWW-Authenticate", 'Basic realm="Quan tri cua hang"');
+    return res.status(401).send("Thông tin xác thực không hợp lệ.");
+  }
+
+  const userGuiLen = chuoiGiaiMa.slice(0, viTriHaiCham);
+  const passGuiLen = chuoiGiaiMa.slice(viTriHaiCham + 1);
+
+  const hopLeUser = soSanhAnToan(userGuiLen, ADMIN_USER);
+  const hopLePass = soSanhAnToan(passGuiLen, ADMIN_PASSWORD);
+
+  if (hopLeUser && hopLePass) {
+    return next();
+  }
+
+  res.set("WWW-Authenticate", 'Basic realm="Quan tri cua hang"');
+  return res.status(401).send("Sai tên đăng nhập hoặc mật khẩu!");
+}
 
 // Chuẩn bị sẵn toàn bộ các câu lệnh SQL ở đầu file để tái sử dụng
 const stmtLayTatCaSanPham = db.prepare("SELECT id, ten, gia FROM san_pham");
@@ -158,6 +217,27 @@ app.post("/api/don-hang", function (req, res) {
 
 // Phục vụ các file tĩnh trong thư mục public
 app.use(express.static(path.join(__dirname, "public")));
+
+// API lấy 50 đơn hàng mới nhất kèm chi tiết sản phẩm
+app.get("/api/quan-tri/don-hang", yeuCauQuanTri, function (req, res) {
+  const danhSachDon = stmtDonMoiNhat.all();
+
+  const ketQua = danhSachDon.map(function (don) {
+    return {
+      ...don,
+      chi_tiet: stmtChiTietTheoDon.all(don.id),
+    };
+  });
+
+  res.json(ketQua);
+});
+
+// Phục vụ toàn bộ giao diện quản trị (HTML, JS, CSS) từ thư mục riêng 'quan-tri'
+app.use(
+  "/quan-tri",
+  yeuCauQuanTri,
+  express.static(path.join(__dirname, "quan-tri")),
+);
 
 // Lắng nghe cổng 3000
 app.listen(3000, function () {

@@ -1,10 +1,11 @@
 {
   "name": "tu-hoc-gio-hang-vs-claude-1",
   "version": "1.0.0",
-  "description": "Mô tả ngắn một hai câu.",
-  "main": "script.js",
+  "description": "Ứng dụng web bán linh kiện máy tính với giỏ hàng, lưu trữ SQLite và trang quản trị bảo mật.",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node --env-file=.env server.js",
+    "dev": "node --watch --env-file=.env server.js"
   },
   "repository": {
     "type": "git",
