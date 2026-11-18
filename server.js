@@ -24,6 +24,30 @@ const stmtChiTietTheoDon = db.prepare(
   "SELECT * FROM chi_tiet_don_hang WHERE don_hang_id = ?",
 );
 
+const TRANG_THAI_HOP_LE = [
+  "moi",
+  "da_xac_nhan",
+  "dang_giao",
+  "da_giao",
+  "da_huy",
+];
+
+// Quy tắc chuyển trạng thái hợp lệ (chặn bước nhảy lùi vô lý)
+const CHUYEN_TRANG_THAI_HOP_LE = {
+  moi: ["da_xac_nhan", "da_huy"],
+  da_xac_nhan: ["dang_giao", "da_huy"],
+  dang_giao: ["da_giao", "da_huy"],
+  da_giao: [], // Đã giao xong không được quay lại hay hủy
+  da_huy: [], // Đã hủy không thể khôi phục
+};
+
+const stmtLayTrangThaiDon = db.prepare(
+  "SELECT trang_thai FROM don_hang WHERE id = ?",
+);
+const stmtCapNhatTrangThai = db.prepare(
+  "UPDATE don_hang SET trang_thai = ? WHERE id = ? AND trang_thai = ?",
+);
+
 // Hàm so sánh an toàn tuyệt đối (băm SHA-256 để cố định độ dài, chống rò rỉ thông tin)
 function soSanhAnToan(a, b) {
   const hashA = crypto.createHash("sha256").update(String(a)).digest();
@@ -228,11 +252,72 @@ app.get("/api/quan-tri/don-hang", yeuCauQuanTri, function (req, res) {
     return {
       ...don,
       chi_tiet: stmtChiTietTheoDon.all(don.id),
+      chuyen_duoc_sang: CHUYEN_TRANG_THAI_HOP_LE[don.trang_thai] || [],
     };
   });
 
   res.json(ketQua);
 });
+
+// API cập nhật trạng thái đơn hàng (PATCH)
+app.patch(
+  "/api/quan-tri/don-hang/:id/trang-thai",
+  yeuCauQuanTri,
+  function (req, res) {
+    // Kiểm tra định dạng ID bằng Regex trước khi ép kiểu số
+    if (!/^\d+$/.test(req.params.id)) {
+      return res.status(400).json({ loi: "ID đơn hàng không hợp lệ!" });
+    }
+
+    const idDon = Number(req.params.id);
+    if (!Number.isInteger(idDon) || idDon <= 0) {
+      return res.status(400).json({ loi: "ID đơn hàng không hợp lệ!" });
+    }
+
+    const trangThaiMoi = req.body ? req.body.trangThai : undefined;
+    if (
+      typeof trangThaiMoi !== "string" ||
+      !TRANG_THAI_HOP_LE.includes(trangThaiMoi)
+    ) {
+      return res.status(400).json({ loi: "Trạng thái đơn hàng không hợp lệ!" });
+    }
+
+    // Kiểm tra đơn hàng có tồn tại không
+    const donHienTai = stmtLayTrangThaiDon.get(idDon);
+    if (!donHienTai) {
+      return res.status(404).json({ loi: "Không tìm thấy đơn hàng!" });
+    }
+
+    // Nếu gửi trùng trạng thái hiện tại thì trả về thành công luôn
+    if (donHienTai.trang_thai === trangThaiMoi) {
+      return res.json({
+        thongBao: "Trạng thái không thay đổi.",
+        trangThai: trangThaiMoi,
+      });
+    }
+
+    // Chặn bước nhảy lùi vô lý
+    const danhSachChoPhepTiepTheo =
+      CHUYEN_TRANG_THAI_HOP_LE[donHienTai.trang_thai] || [];
+    if (!danhSachChoPhepTiepTheo.includes(trangThaiMoi)) {
+      return res.status(400).json({
+        loi: `Không thể chuyển từ trạng thái '${donHienTai.trang_thai}' sang '${trangThaiMoi}'!`,
+      });
+    }
+      // Cập nhật có điều kiện trạng thái gốc (chống ghi đè khi nhiều người thao tác cùng lúc)
+    const ketQua = stmtCapNhatTrangThai.run(trangThaiMoi, idDon, donHienTai.trang_thai);
+    if (ketQua.changes === 0) {
+      return res
+        .status(409)
+        .json({ loi: "Trạng thái đơn hàng vừa được người khác thay đổi. Vui lòng làm mới trang!" });
+    }
+
+    res.json({
+      thongBao: "Cập nhật trạng thái thành công!",
+      trangThai: trangThaiMoi,
+    });
+  },
+);
 
 // Phục vụ toàn bộ giao diện quản trị (HTML, JS, CSS) từ thư mục riêng 'quan-tri'
 app.use(

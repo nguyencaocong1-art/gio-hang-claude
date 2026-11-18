@@ -9,15 +9,24 @@
 <body>
   <div class="thanh-tieu-de">
     <h1>Danh sách Đơn hàng</h1>
-    <div>
+    <div class="nhom-hanh-dong">
+      <label for="loc-trang-thai">Lọc:</label>
+      <select id="loc-trang-thai">
+        <option value="tat_ca">Tất cả đơn hàng</option>
+        <option value="moi">Mới</option>
+        <option value="da_xac_nhan">Đã xác nhận</option>
+        <option value="dang_giao">Đang giao</option>
+        <option value="da_giao">Đã giao</option>
+        <option value="da_huy">Đã hủy</option>
+      </select>
       <button id="btn-lam-moi">Làm mới</button>
-      <a href="/" style="margin-left: 12px;">Về trang bán hàng</a>
+      <a href="/">Về trang bán hàng</a>
     </div>
   </div>
 
+  <p id="canh-bao" role="alert"></p>
+
   <div id="khung-don-hang">Đang tải dữ liệu...</div>
-
-
 
   <script src="quan-tri.js"></script>
 </body>

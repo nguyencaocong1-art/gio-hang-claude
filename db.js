@@ -19,6 +19,7 @@ db.exec(`
     sdt TEXT NOT NULL,
     dia_chi TEXT NOT NULL,
     tong_tien INTEGER NOT NULL,
+    trang_thai TEXT NOT NULL DEFAULT 'moi',
     tao_luc TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
   );
 
@@ -31,6 +32,18 @@ db.exec(`
     so_luong INTEGER NOT NULL
   );
 `);
+
+const cotDonHang = db.prepare("PRAGMA table_info(don_hang)").all();
+if (
+  !cotDonHang.some(function (cot) {
+    return cot.name === "trang_thai";
+  })
+) {
+  db.exec(
+    "ALTER TABLE don_hang ADD COLUMN trang_thai TEXT NOT NULL DEFAULT 'moi'",
+  );
+  console.log("Đã nâng cấp bảng don_hang: thêm cột 'trang_thai'.");
+}
 
 // Migration: Nâng cấp cơ sở dữ liệu cũ nếu chưa có cột 'anh'
 const cotSanPham = db.prepare("PRAGMA table_info(san_pham)").all();
@@ -65,15 +78,20 @@ if (soDong === 0) {
       id: 1,
       ten: "SSD Samsung 1TB",
       gia: 1300000,
-      anh: "anh/ssd-samsung-1tb.jpg",
+      anh: "/anh/ssd-samsung-1tb.jpg",
     },
     {
       id: 2,
       ten: "RAM Kingston 16GB",
       gia: 1200000,
-      anh: "anh/ram-kingston-16gb.jpg",
+      anh: "/anh/ram-kingston-16gb.jpg",
     },
-    { id: 3, ten: "CPU Intel I5", gia: 5000000, anh: "anh/cpu-intel-i5.jpg" },
+    {
+      id: 3,
+      ten: "CPU Intel I5",
+      gia: 5000000,
+      anh: "/anh/cpu-intel-i5.jpg",
+    },
   ]);
 
   console.log("Đã nạp dữ liệu mẫu vào cơ sở dữ liệu thành công!");
@@ -85,11 +103,11 @@ if (soDong === 0) {
   capNhatAnh.run("/anh/ssd-samsung-1tb.jpg", 1);
   capNhatAnh.run("/anh/ram-kingston-16gb.jpg", 2);
   capNhatAnh.run("/anh/cpu-intel-i5.jpg", 3);
-
-  // 2. Sửa một lần cho các dòng dữ liệu cũ đang lưu "anh/..." thành "/anh/..."
-  db.exec(
-    "UPDATE san_pham SET anh = '/' || anh WHERE anh IS NOT NULL AND anh NOT LIKE '/%'",
-  );
 }
+
+// Luôn chuẩn hóa các đường dẫn cũ thiếu dấu '/' ở đầu (nếu có)
+db.exec(
+  "UPDATE san_pham SET anh = '/' || anh WHERE anh IS NOT NULL AND anh NOT LIKE '/%'",
+);
 
 module.exports = db;
