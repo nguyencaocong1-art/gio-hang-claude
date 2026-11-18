@@ -284,6 +284,21 @@ app.post("/api/don-hang", gioiHanDatHang, function (req, res) {
 // Phục vụ các file tĩnh trong thư mục public
 app.use(express.static(path.join(__dirname, "public")));
 
+// ======================================================
+// KHU VỰC QUẢN TRỊ (BẢO MẬT BẰNG BASIC AUTH + RATE LIMIT)
+// ======================================================
+
+// Phục vụ toàn bộ giao diện quản trị (HTML, JS, CSS) từ thư mục riêng 'quan-tri'
+app.use(
+  "/quan-tri",
+  gioiHanQuanTri,
+  yeuCauQuanTri,
+  express.static(path.join(__dirname, "quan-tri")),
+);
+
+// Áp dụng cho nhóm API quản trị
+app.use("/api/quan-tri", gioiHanQuanTri, yeuCauQuanTri);
+
 // API lấy 50 đơn hàng mới nhất kèm chi tiết sản phẩm
 app.get("/api/quan-tri/don-hang", yeuCauQuanTri, function (req, res) {
   const danhSachDon = stmtDonMoiNhat.all();
@@ -362,17 +377,6 @@ app.patch(
     });
   },
 );
-
-// Phục vụ toàn bộ giao diện quản trị (HTML, JS, CSS) từ thư mục riêng 'quan-tri'
-app.use(
-  "/quan-tri",
-  gioiHanQuanTri,
-  yeuCauQuanTri,
-  express.static(path.join(__dirname, "quan-tri")),
-);
-
-// Áp dụng cho nhóm API quản trị
-app.use("/api/quan-tri", gioiHanQuanTri, yeuCauQuanTri);
 
 // Bắt tất cả các đường dẫn /api không tồn tại -> trả 404 dạng JSON
 app.use("/api", function (req, res) {
