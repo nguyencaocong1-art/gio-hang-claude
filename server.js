@@ -304,12 +304,18 @@ app.patch(
         loi: `Không thể chuyển từ trạng thái '${donHienTai.trang_thai}' sang '${trangThaiMoi}'!`,
       });
     }
-      // Cập nhật có điều kiện trạng thái gốc (chống ghi đè khi nhiều người thao tác cùng lúc)
-    const ketQua = stmtCapNhatTrangThai.run(trangThaiMoi, idDon, donHienTai.trang_thai);
+    // Cập nhật có điều kiện trạng thái gốc (chống ghi đè khi nhiều người thao tác cùng lúc)
+    const ketQua = stmtCapNhatTrangThai.run(
+      trangThaiMoi,
+      idDon,
+      donHienTai.trang_thai,
+    );
     if (ketQua.changes === 0) {
       return res
         .status(409)
-        .json({ loi: "Trạng thái đơn hàng vừa được người khác thay đổi. Vui lòng làm mới trang!" });
+        .json({
+          loi: "Trạng thái đơn hàng vừa được người khác thay đổi. Vui lòng làm mới trang!",
+        });
     }
 
     res.json({
@@ -327,6 +333,8 @@ app.use(
 );
 
 // Lắng nghe cổng 3000
-app.listen(3000, function () {
-  console.log("Máy chủ chạy tại http://localhost:3000");
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, function () {
+  console.log(`Máy chủ đang chạy tại cổng ${PORT}`);
 });
