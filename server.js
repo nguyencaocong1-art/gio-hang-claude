@@ -332,6 +332,32 @@ app.use(
   express.static(path.join(__dirname, "quan-tri")),
 );
 
+// Bắt tất cả các đường dẫn /api không tồn tại -> trả 404 dạng JSON
+app.use("/api", function (req, res) {
+  res.status(404).json({ loi: "Đường dẫn API không tồn tại!" });
+});
+
+// Hàm xử lý lỗi chung (bắt buộc đủ 4 tham số để Express nhận diện)
+app.use(function (err, req, res, next) {
+  console.error(err);
+
+  // Chỉ lấy mã trạng thái nếu là số nguyên hợp lệ từ 400 đến 599, mặc định 500
+  const maLoi =
+    Number.isInteger(err.status) && err.status >= 400 && err.status <= 599
+      ? err.status
+      : 500;
+
+  // Thông báo an toàn, tuyệt đối không trả err.message hay err.stack ra ngoài
+  const thongBao =
+    maLoi === 400
+      ? "Dữ liệu gửi lên không đúng định dạng!"
+      : maLoi < 500
+      ? "Yêu cầu không hợp lệ!"
+      : "Lỗi máy chủ nội bộ, vui lòng thử lại sau!";
+
+  res.status(maLoi).json({ loi: thongBao });
+});
+
 // Lắng nghe cổng 3000
 const PORT = process.env.PORT || 3000;
 
