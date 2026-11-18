@@ -3,6 +3,12 @@ const app = express();
 const path = require("path");
 const crypto = require("crypto");
 
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+
+// Tin tưởng 1 lớp proxy trung gian khi chạy trên môi trường thật (Render, Railway, Nginx...)
+app.set("trust proxy", 1);
+
 // Kiểm tra cấu hình bảo mật ngay khi khởi động (Fail-fast)
 const ADMIN_USER = process.env.ADMIN_USER;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
@@ -131,6 +137,40 @@ const luuDonHangTransaction = db.transaction(
   },
 );
 
+// Giới hạn đăng nhập sai vào trang quản trị (chống dò mật khẩu Brute-force)
+const gioiHanQuanTri = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 phút
+  max: 10, // Tối đa 10 lần thất bại
+  skipSuccessfulRequests: true, // Chỉ đếm request lỗi (401, 403...), KHÔNG đếm lần thành công (200) để tránh tự khóa khi trang tự làm mới mỗi 60s
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    loi: "Bạn đã thử đăng nhập sai quá nhiều lần. Vui lòng thử lại sau 15 phút!",
+  },
+});
+
+// Giới hạn gửi đơn hàng mới (chống spam đơn rác)
+const gioiHanDatHang = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 phút
+  max: 10, // Tối đa 10 đơn mỗi 10 phút cho mỗi IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    loi: "Bạn đặt hàng quá nhanh. Vui lòng đợi vài phút rồi thử lại!",
+  },
+});
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        "upgrade-insecure-requests": null, // Tránh lỗi tự ép sang HTTPS làm mất CSS/JS khi chạy ở localhost
+      },
+    },
+  }),
+);
+
 // Cho phép máy chủ đọc được dữ liệu JSON gửi lên từ client qua req.body
 app.use(express.json());
 
@@ -143,7 +183,7 @@ app.get("/api/san-pham", function (req, res) {
 // ======================================================
 // API NHẬN VÀ XỬ LÝ ĐƠN HÀNG (POST) - BẢO MẬT & SQLITE TRANSACTION
 // ======================================================
-app.post("/api/don-hang", function (req, res) {
+app.post("/api/don-hang", gioiHanDatHang, function (req, res) {
   const duLieuGuiLen = req.body || {};
 
   // Kiểm tra thông tin khách hàng và chuẩn hóa
@@ -311,11 +351,9 @@ app.patch(
       donHienTai.trang_thai,
     );
     if (ketQua.changes === 0) {
-      return res
-        .status(409)
-        .json({
-          loi: "Trạng thái đơn hàng vừa được người khác thay đổi. Vui lòng làm mới trang!",
-        });
+      return res.status(409).json({
+        loi: "Trạng thái đơn hàng vừa được người khác thay đổi. Vui lòng làm mới trang!",
+      });
     }
 
     res.json({
@@ -328,9 +366,13 @@ app.patch(
 // Phục vụ toàn bộ giao diện quản trị (HTML, JS, CSS) từ thư mục riêng 'quan-tri'
 app.use(
   "/quan-tri",
+  gioiHanQuanTri,
   yeuCauQuanTri,
   express.static(path.join(__dirname, "quan-tri")),
 );
+
+// Áp dụng cho nhóm API quản trị
+app.use("/api/quan-tri", gioiHanQuanTri, yeuCauQuanTri);
 
 // Bắt tất cả các đường dẫn /api không tồn tại -> trả 404 dạng JSON
 app.use("/api", function (req, res) {
@@ -352,8 +394,8 @@ app.use(function (err, req, res, next) {
     maLoi === 400
       ? "Dữ liệu gửi lên không đúng định dạng!"
       : maLoi < 500
-      ? "Yêu cầu không hợp lệ!"
-      : "Lỗi máy chủ nội bộ, vui lòng thử lại sau!";
+        ? "Yêu cầu không hợp lệ!"
+        : "Lỗi máy chủ nội bộ, vui lòng thử lại sau!";
 
   res.status(maLoi).json({ loi: thongBao });
 });
