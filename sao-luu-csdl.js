@@ -4,7 +4,6 @@ const path = require("path");
 const THU_MUC_SAO_LUU = path.join(__dirname, "sao-luu");
 const SO_BAN_GIU_LAI = 7;
 
-// Tạo chuỗi ngày theo múi giờ local dạng YYYY-MM-DD (tránh lệch ngày do UTC)
 function layNgayHienTai() {
   const now = new Date();
   const nam = now.getFullYear();
@@ -21,7 +20,7 @@ function donDepBanSaoLuuCu() {
     .filter(function (tenFile) {
       return /^cua-hang-\d{4}-\d{2}-\d{2}\.db$/.test(tenFile);
     })
-    .sort(); // Sắp xếp tăng dần theo tên (YYYY-MM-DD sẽ đúng thứ tự thời gian)
+    .sort();
 
   if (danhSachFile.length > SO_BAN_GIU_LAI) {
     const canXoa = danhSachFile.slice(0, danhSachFile.length - SO_BAN_GIU_LAI);
@@ -34,6 +33,10 @@ function donDepBanSaoLuuCu() {
 
 async function saoLuu(db) {
   try {
+    if (!db || typeof db.backup !== "function") {
+      throw new Error("Đối tượng cơ sở dữ liệu không hỗ trợ backup()");
+    }
+
     fs.mkdirSync(THU_MUC_SAO_LUU, { recursive: true });
 
     const tenFile = `cua-hang-${layNgayHienTai()}.db`;

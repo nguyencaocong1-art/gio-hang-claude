@@ -7,7 +7,12 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 
 // Tin tưởng 1 lớp proxy trung gian khi chạy trên môi trường thật (Render, Railway, Nginx...)
-app.set("trust proxy", 1);
+if (process.env.TRUST_PROXY !== undefined && process.env.TRUST_PROXY !== "") {
+  const soLopProxy = Number(process.env.TRUST_PROXY);
+  if (Number.isInteger(soLopProxy) && soLopProxy >= 0) {
+    app.set("trust proxy", soLopProxy);
+  }
+}
 
 // Kiểm tra cấu hình bảo mật ngay khi khởi động (Fail-fast)
 const ADMIN_USER = process.env.ADMIN_USER;
@@ -20,9 +25,27 @@ if (!ADMIN_USER || !ADMIN_PASSWORD) {
   process.exit(1);
 }
 
+if (process.env.NODE_ENV === "production") {
+  const MAT_KHAU_MAU = ["mat_khau_rat_manh", "admin", "password", "123456"];
+
+  if (ADMIN_USER === "admin") {
+    console.error(
+      "LỖI NGHIÊM TRỌNG (production): Không được dùng tên đăng nhập mặc định 'admin' cho ADMIN_USER!",
+    );
+    process.exit(1);
+  }
+
+  if (ADMIN_PASSWORD.length < 12 || MAT_KHAU_MAU.includes(ADMIN_PASSWORD)) {
+    console.error(
+      "LỖI NGHIÊM TRỌNG (production): ADMIN_PASSWORD phải có ít nhất 12 ký tự và không được trùng mật khẩu mẫu!",
+    );
+    process.exit(1);
+  }
+}
+
 // Khai báo db
 const db = require("./db");
-const saoLuu = require("./sao-luu");
+const saoLuu = require("./sao-luu-csdl");
 
 const stmtDonMoiNhat = db.prepare(
   "SELECT * FROM don_hang ORDER BY id DESC LIMIT 50",
@@ -141,7 +164,7 @@ const luuDonHangTransaction = db.transaction(
 // Giới hạn đăng nhập sai vào trang quản trị (chống dò mật khẩu Brute-force)
 const gioiHanQuanTri = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 phút
-  max: 10, // Tối đa 10 lần thất bại
+  limit: 10, // Tối đa 10 lần thất bại
   skipSuccessfulRequests: true, // Chỉ đếm request lỗi (401, 403...), KHÔNG đếm lần thành công (200) để tránh tự khóa khi trang tự làm mới mỗi 60s
   standardHeaders: true,
   legacyHeaders: false,
@@ -153,7 +176,7 @@ const gioiHanQuanTri = rateLimit({
 // Giới hạn gửi đơn hàng mới (chống spam đơn rác)
 const gioiHanDatHang = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 phút
-  max: 10, // Tối đa 10 đơn mỗi 10 phút cho mỗi IP
+  limit: 10, // Tối đa 10 đơn mỗi 10 phút cho mỗi IP
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -161,13 +184,18 @@ const gioiHanDatHang = rateLimit({
   },
 });
 
+const cspDirectives = {
+  ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+};
+
+if (process.env.NODE_ENV !== "production") {
+  delete cspDirectives["upgrade-insecure-requests"];
+}
+
 app.use(
   helmet({
     contentSecurityPolicy: {
-      directives: {
-        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-        "upgrade-insecure-requests": null, // Tránh lỗi tự ép sang HTTPS làm mất CSS/JS khi chạy ở localhost
-      },
+      directives: cspDirectives,
     },
   }),
 );
@@ -409,14 +437,16 @@ app.use(function (err, req, res, next) {
 const MOT_NGAY_MS = 24 * 60 * 60 * 1000;
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, async function () {
+app.listen(PORT, function () {
   console.log(`Máy chủ đang chạy tại cổng ${PORT}`);
 
-  // Chạy sao lưu ngay khi khởi động
-  await saoLuu(db);
+  saoLuu(db).catch(function (loi) {
+    console.error("Lỗi sao lưu khi khởi động:", loi);
+  });
 
-  // Lặp lại sao lưu mỗi 24 giờ
   setInterval(function () {
-    saoLuu(db);
+    saoLuu(db).catch(function (loi) {
+      console.error("Lỗi sao lưu định kỳ:", loi);
+    });
   }, MOT_NGAY_MS);
 });
