@@ -22,6 +22,7 @@ if (!ADMIN_USER || !ADMIN_PASSWORD) {
 
 // Khai báo db
 const db = require("./db");
+const saoLuu = require("./sao-luu");
 
 const stmtDonMoiNhat = db.prepare(
   "SELECT * FROM don_hang ORDER BY id DESC LIMIT 50",
@@ -405,8 +406,17 @@ app.use(function (err, req, res, next) {
 });
 
 // Lắng nghe cổng 3000
+const MOT_NGAY_MS = 24 * 60 * 60 * 1000;
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, function () {
+app.listen(PORT, async function () {
   console.log(`Máy chủ đang chạy tại cổng ${PORT}`);
+
+  // Chạy sao lưu ngay khi khởi động
+  await saoLuu(db);
+
+  // Lặp lại sao lưu mỗi 24 giờ
+  setInterval(function () {
+    saoLuu(db);
+  }, MOT_NGAY_MS);
 });
